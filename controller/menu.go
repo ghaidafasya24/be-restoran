@@ -3,7 +3,15 @@ package controller
 import (
 	"be/config" // Sesuaikan dengan nama package project Anda
 	"be/model"
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"mime/multipart"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -34,18 +42,89 @@ func InsertMenu(c *fiber.Ctx) error {
 	menusCollection := config.Ulbimongoconn.Collection("menu")
 
 	// Masukkan data menu ke MongoDB
-	_, err := menusCollection.InsertOne(ctx, menu)
+	insertedID, err := menusCollection.InsertOne(ctx, menu)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to insert menu",
 		})
 	}
 
+	// Proses upload gambar
+	file, err := c.FormFile("image")
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Image file is required: " + err.Error(),
+		})
+	}
+	imageURL, err := UploadImageToGitHub(file, menu.MenuName)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": err.Error(),
+		})
+	}
+	menu.Image = imageURL
+
 	// Response sukses
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message": "Menu inserted successfully",
-		"menu":    menu,
+		"status":      http.StatusOK,
+		"message":     "Product data saved successfully.",
+		"inserted_id": insertedID,
+		"image_url":   imageURL,
 	})
+}
+
+func UploadImageToGitHub(file *multipart.FileHeader, productName string) (string, error) {
+	githubToken := os.Getenv("GH_ACCESS_TOKEN")
+	repoOwner := "ghaidafasya24"
+	repoName := "images-restoran"
+	filePath := fmt.Sprintf("product/%d_%s.jpg", time.Now().Unix(), productName)
+
+	fileContent, err := file.Open()
+	if err != nil {
+		return "", fmt.Errorf("failed to open image file: %w", err)
+	}
+	defer fileContent.Close()
+
+	imageData, err := ioutil.ReadAll(fileContent)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image file: %w", err)
+	}
+
+	encodedImage := base64.StdEncoding.EncodeToString(imageData)
+	payload := map[string]string{
+		"message": fmt.Sprintf("Add image for product %s", productName),
+		"content": encodedImage,
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest("PUT", fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", repoOwner, repoName, filePath), bytes.NewReader(payloadBytes))
+	req.Header.Set("Authorization", "Bearer "+githubToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to upload image to GitHub: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return "", fmt.Errorf("GitHub API error: %s", body)
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to parse GitHub API response: %w", err)
+	}
+
+	content, ok := result["content"].(map[string]interface{})
+	if !ok || content["download_url"] == nil {
+		return "", fmt.Errorf("GitHub API response missing download_url")
+	}
+
+	return content["download_url"].(string), nil
 }
 
 // GetAllMenu function untuk mengambil semua menu
@@ -184,12 +263,14 @@ func UpdateMenu(c *fiber.Ctx) error {
 	// Cek apakah menu ditemukan untuk di-update
 	if result.MatchedCount == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
 			"message": "Menu not found",
 		})
 	}
 
 	// Response sukses
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  http.StatusOK,
 		"message": "Menu updated successfully",
 	})
 }
@@ -225,12 +306,14 @@ func DeleteMenu(c *fiber.Ctx) error {
 	// Cek apakah menu ditemukan untuk dihapus
 	if result.DeletedCount == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Menu not found",
+			"status":  http.StatusInternalServerError,
+			"message": fmt.Sprintf("Error deleting data for id %s", menuID),
 		})
 	}
 
 	// Response sukses
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "Menu deleted successfully",
+		"status":  http.StatusOK,
+		"message": fmt.Sprintf("Product data with id %s deleted successfully", menuID),
 	})
 }
