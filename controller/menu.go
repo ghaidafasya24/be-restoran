@@ -32,6 +32,7 @@ func InsertMenu(c *fiber.Ctx) error {
 
 	// Tambahkan ID unik dan waktu pembuatan
 	menu.ID = primitive.NewObjectID()
+	menu.MenuName = c.String()
 	menu.CreatedAt = time.Now()
 
 	// Connect ke MongoDB
