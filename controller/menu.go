@@ -20,7 +20,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// InsertMenu function untuk menambahkan menu dengan token
 func InsertMenu(c *fiber.Ctx) error {
 	// Bind data menu dari request body
 	var menu model.Menu
@@ -30,7 +29,58 @@ func InsertMenu(c *fiber.Ctx) error {
 		})
 	}
 
-	// Tambahkan ID unik dan waktu pembuatan
+	// Validasi: Periksa jika MenuName kosong
+	if menu.MenuName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Menu name is required and cannot be empty",
+		})
+	}
+
+	// Validasi: Periksa jika Price kosong atau nol
+	if menu.Price == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Price is required and cannot be zero",
+		})
+	}
+
+	// Validasi: Periksa jika Description kosong
+	if menu.Description == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Description is required and cannot be empty",
+		})
+	}
+
+	// Validasi: Periksa jika Stock kosong atau nol
+	if menu.Stock == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Stock is required and cannot be zero",
+		})
+	}
+
+	// Validasi: Periksa jika MenuCategories kosong
+	if menu.MenuCategories == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Menu categories is required and cannot be empty",
+		})
+	}
+
+	// Proses upload gambar
+	file, err := c.FormFile("Image")
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"status":  http.StatusBadRequest,
+			"message": "Image file is required: " + err.Error(),
+		})
+	}
+	imageURL, err := UploadImageToGitHub(file, menu.MenuName)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"status":  http.StatusInternalServerError,
+			"message": err.Error(),
+		})
+	}
+
+	menu.Image = imageURL // Tambahkan ID unik dan waktu pembuatan
 	menu.ID = primitive.NewObjectID()
 	menu.CreatedAt = time.Now()
 
@@ -48,24 +98,6 @@ func InsertMenu(c *fiber.Ctx) error {
 			"error": "Failed to insert menu",
 		})
 	}
-
-	// Proses upload gambar
-	file, err := c.FormFile("image")
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Image file is required: " + err.Error(),
-		})
-	}
-	imageURL, err := UploadImageToGitHub(file, menu.MenuName)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": err.Error(),
-		})
-	}
-	menu.Image = imageURL
-
 	// Response sukses
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":      http.StatusOK,
@@ -79,7 +111,7 @@ func UploadImageToGitHub(file *multipart.FileHeader, productName string) (string
 	githubToken := os.Getenv("GH_ACCESS_TOKEN")
 	repoOwner := "ghaidafasya24"
 	repoName := "images-restoran"
-	filePath := fmt.Sprintf("product/%d_%s.jpg", time.Now().Unix(), productName)
+	filePath := fmt.Sprintf("menu/%d_%s.jpg", time.Now().Unix(), productName)
 
 	fileContent, err := file.Open()
 	if err != nil {

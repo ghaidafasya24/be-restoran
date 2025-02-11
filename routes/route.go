@@ -18,9 +18,9 @@ func SetupRoutes(app *fiber.App) {
 
 	// Menu routes
 	menuRoutes := api.Group("/menu")
-	menuRoutes.Post("/insert", controller.JWTAuth, controller.InsertMenu) // Insert dengan token
-	menuRoutes.Get("/", controller.GetAllMenu)                            // Route untuk mengambil semua menu
-	menuRoutes.Get("/:id", controller.GetMenuByID)                        // Route untuk mengambil menu berdasarkan ID
-	menuRoutes.Put("/:id", controller.JWTAuth, controller.UpdateMenu)     // Route untuk memperbarui menu berdasarkan ID
-	menuRoutes.Delete("/:id", controller.JWTAuth, controller.DeleteMenu)                      // Route untuk menghapus menu berdasarkan ID
+	menuRoutes.Post("/", controller.JWTAuth, controller.InsertMenu)      // Insert dengan token
+	menuRoutes.Get("/", controller.GetAllMenu)                           // Route untuk mengambil semua menu
+	menuRoutes.Get("/:id", controller.GetMenuByID)                       // Route untuk mengambil menu berdasarkan ID
+	menuRoutes.Put("/:id", controller.JWTAuth, controller.UpdateMenu)    // Route untuk memperbarui menu berdasarkan ID
+	menuRoutes.Delete("/:id", controller.JWTAuth, controller.DeleteMenu) // Route untuk menghapus menu berdasarkan ID
 }

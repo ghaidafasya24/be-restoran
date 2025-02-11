@@ -59,6 +59,9 @@ func Register(c *fiber.Ctx) error {
 	// Set additional fields
 	user.ID = primitive.NewObjectID()
 
+	// Set default role to "seller"
+	user.Role = "admin"
+
 	// Insert the new user into the database
 	_, err = usersCollection.InsertOne(ctx, user)
 	if err != nil {
@@ -70,15 +73,20 @@ func Register(c *fiber.Ctx) error {
 	// Respond with success
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"message": "User registered successfully",
+		"status":  200,
 		"user":    user,
 	})
 }
 
-var jwtKey = []byte("secretkey") // Ganti dengan key yang lebih aman
+var jwtKey = []byte("secret_key!234@!#$%")
 
 // Claims struct untuk JWT
 type Claims struct {
-	Username string `json:"username"`
+	UserID      string `json:"user_id"`
+	FullName    string `json:"name"`
+	PhoneNumber string `json:"phone_number"`
+	Username    string `json:"username"`
+	Role        string `json:"role"`
 	jwt.RegisteredClaims
 }
 
