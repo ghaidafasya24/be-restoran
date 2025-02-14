@@ -59,7 +59,7 @@ func Register(c *fiber.Ctx) error {
 	// Set additional fields
 	user.ID = primitive.NewObjectID()
 
-	// Set default role to "seller"
+	// Set default role to "admin"
 	user.Role = "admin"
 
 	// Insert the new user into the database
@@ -73,9 +73,13 @@ func Register(c *fiber.Ctx) error {
 	// Respond with success
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"message": "User registered successfully",
-		"status":  200,
-		"user":    user,
+		"status":  201,
+		"user": fiber.Map{
+			"_id":  user.ID,
+			"role": user.Role,
+		},
 	})
+
 }
 
 var jwtKey = []byte("secret_key!234@!#$%")
