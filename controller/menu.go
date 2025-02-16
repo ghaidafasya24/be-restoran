@@ -3,15 +3,9 @@ package controller
 import (
 	"be/config" // Sesuaikan dengan nama package project Anda
 	"be/model"
-	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"mime/multipart"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -64,23 +58,23 @@ func InsertMenu(c *fiber.Ctx) error {
 		})
 	}
 
-	// Proses upload gambar
-	file, err := c.FormFile("Image")
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"status":  http.StatusBadRequest,
-			"message": "Image file is required: " + err.Error(),
-		})
-	}
-	imageURL, err := UploadImageToGitHub(file, menu.MenuName)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"status":  http.StatusInternalServerError,
-			"message": err.Error(),
-		})
-	}
+	// // Proses upload gambar
+	// file, err := c.FormFile("Image")
+	// if err != nil {
+	// 	return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+	// 		"status":  http.StatusBadRequest,
+	// 		"message": "Image file is required: " + err.Error(),
+	// 	})
+	// }
+	// imageURL, err := UploadImageToGitHub(file, menu.MenuName)
+	// if err != nil {
+	// 	return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+	// 		"status":  http.StatusInternalServerError,
+	// 		"message": err.Error(),
+	// 	})
+	// }
 
-	menu.Image = imageURL // Tambahkan ID unik dan waktu pembuatan
+	// menu.Image = imageURL // Tambahkan ID unik dan waktu pembuatan
 	menu.ID = primitive.NewObjectID()
 	menu.CreatedAt = time.Now()
 
@@ -103,61 +97,61 @@ func InsertMenu(c *fiber.Ctx) error {
 		"status":      http.StatusOK,
 		"message":     "Product data saved successfully.",
 		"inserted_id": insertedID,
-		"image_url":   imageURL,
+		// "image_url":   imageURL,
 	})
 }
 
-func UploadImageToGitHub(file *multipart.FileHeader, productName string) (string, error) {
-	githubToken := os.Getenv("GH_ACCESS_TOKEN")
-	repoOwner := "ghaidafasya24"
-	repoName := "images-restoran"
-	filePath := fmt.Sprintf("menu/%d_%s.jpg", time.Now().Unix(), productName)
+// func UploadImageToGitHub(file *multipart.FileHeader, productName string) (string, error) {
+// 	githubToken := os.Getenv("GH_ACCESS_TOKEN")
+// 	repoOwner := "ghaidafasya24"
+// 	repoName := "images-restoran"
+// 	filePath := fmt.Sprintf("menu/%d_%s.jpg", time.Now().Unix(), productName)
 
-	fileContent, err := file.Open()
-	if err != nil {
-		return "", fmt.Errorf("failed to open image file: %w", err)
-	}
-	defer fileContent.Close()
+// 	fileContent, err := file.Open()
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to open image file: %w", err)
+// 	}
+// 	defer fileContent.Close()
 
-	imageData, err := ioutil.ReadAll(fileContent)
-	if err != nil {
-		return "", fmt.Errorf("failed to read image file: %w", err)
-	}
+// 	imageData, err := ioutil.ReadAll(fileContent)
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to read image file: %w", err)
+// 	}
 
-	encodedImage := base64.StdEncoding.EncodeToString(imageData)
-	payload := map[string]string{
-		"message": fmt.Sprintf("Add image for product %s", productName),
-		"content": encodedImage,
-	}
-	payloadBytes, _ := json.Marshal(payload)
+// 	encodedImage := base64.StdEncoding.EncodeToString(imageData)
+// 	payload := map[string]string{
+// 		"message": fmt.Sprintf("Add image for product %s", productName),
+// 		"content": encodedImage,
+// 	}
+// 	payloadBytes, _ := json.Marshal(payload)
 
-	req, _ := http.NewRequest("PUT", fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", repoOwner, repoName, filePath), bytes.NewReader(payloadBytes))
-	req.Header.Set("Authorization", "Bearer "+githubToken)
-	req.Header.Set("Content-Type", "application/json")
+// 	req, _ := http.NewRequest("PUT", fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", repoOwner, repoName, filePath), bytes.NewReader(payloadBytes))
+// 	req.Header.Set("Authorization", "Bearer "+githubToken)
+// 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to upload image to GitHub: %w", err)
-	}
-	defer resp.Body.Close()
+// 	resp, err := http.DefaultClient.Do(req)
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to upload image to GitHub: %w", err)
+// 	}
+// 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return "", fmt.Errorf("GitHub API error: %s", body)
-	}
+// 	if resp.StatusCode != http.StatusCreated {
+// 		body, _ := ioutil.ReadAll(resp.Body)
+// 		return "", fmt.Errorf("GitHub API error: %s", body)
+// 	}
 
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("failed to parse GitHub API response: %w", err)
-	}
+// 	var result map[string]interface{}
+// 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+// 		return "", fmt.Errorf("failed to parse GitHub API response: %w", err)
+// 	}
 
-	content, ok := result["content"].(map[string]interface{})
-	if !ok || content["download_url"] == nil {
-		return "", fmt.Errorf("GitHub API response missing download_url")
-	}
+// 	content, ok := result["content"].(map[string]interface{})
+// 	if !ok || content["download_url"] == nil {
+// 		return "", fmt.Errorf("GitHub API response missing download_url")
+// 	}
 
-	return content["download_url"].(string), nil
-}
+// 	return content["download_url"].(string), nil
+// }
 
 // GetAllMenu function untuk mengambil semua menu
 func GetAllMenu(c *fiber.Ctx) error {
